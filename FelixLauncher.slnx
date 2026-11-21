@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/Felix.Core/Felix.Core.csproj" />
+  <Project Path="src/Felix.Minecraft/Felix.Minecraft.csproj" />
+  <Project Path="src/Felix.Launcher/Felix.Launcher.csproj" />
+  <Project Path="tests/Felix.Core.Tests/Felix.Core.Tests.csproj" />
+</Solution>

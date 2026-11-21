@@ -1,0 +1,148 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Felix.Launcher.MainWindow"
+        Title="Felix Launcher"
+        Width="1200" Height="800" MinWidth="1060" MinHeight="720"
+        WindowStartupLocation="CenterScreen">
+
+  <Window.Background>
+    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Color="#0d0f14" Offset="0" />
+      <GradientStop Color="#171c29" Offset="1" />
+    </LinearGradientBrush>
+  </Window.Background>
+
+  <Grid ColumnDefinitions="88,*">
+
+    <!-- ============ Barre des serveurs (le hub) ============ -->
+    <Border Grid.Column="0" Background="#0a0c10" Padding="18,18,18,16">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Bottom" Spacing="8">
+          <Button Classes="rail" Content="＋" ToolTip.Tip="Ajouter un serveur"
+                  Click="OnAddServer" IsEnabled="{Binding IsNotBusy}" />
+          <Button Classes="rail" Content="−" ToolTip.Tip="Retirer ce serveur de la liste"
+                  Command="{Binding RemoveServerCommand}" />
+        </StackPanel>
+        <Image DockPanel.Dock="Top" Source="{Binding Logo}" Width="52" Height="52" Margin="0,0,0,18" />
+        <ListBox Classes="rail" ItemsSource="{Binding Servers}"
+                 SelectedItem="{Binding SelectedServer, Mode=TwoWay}" IsEnabled="{Binding IsNotBusy}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border Width="52" Height="52" Margin="3" CornerRadius="15"
+                      Background="{DynamicResource TileBrush}" ToolTip.Tip="{Binding Name}">
+                <TextBlock Text="{Binding Initial}" FontSize="22" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- ============ Contenu ============ -->
+    <Grid Grid.Column="1" Margin="28,20,28,20" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+
+      <!-- Ligne du haut : nom de l'appli et bandeau de mise à jour -->
+      <StackPanel Grid.Row="0" Spacing="10">
+        <TextBlock Text="{Binding Title}" Classes="muted" FontSize="12" />
+        <Border IsVisible="{Binding UpdateVisible}" Background="#1d3a6e" CornerRadius="12" Padding="16,10">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Classes="ghost" Content="Mettre à jour" Command="{Binding UpdateCommand}" />
+            <TextBlock Text="{Binding UpdateText}" VerticalAlignment="Center" />
+          </DockPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- Carte principale : le serveur choisi, son état, le pseudo et le bouton Jouer -->
+      <Border Grid.Row="1" Classes="card" Padding="24">
+        <Grid ColumnDefinitions="Auto,*,260">
+          <Border Width="92" Height="92" CornerRadius="20" Background="{DynamicResource TileBrush}"
+                  ClipToBounds="True" VerticalAlignment="Top">
+            <Grid>
+              <TextBlock Text="{Binding SelectedServer.Initial}" FontSize="40" FontWeight="Bold"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <Image Source="{Binding ServerIcon}" Stretch="UniformToFill" />
+            </Grid>
+          </Border>
+
+          <StackPanel Grid.Column="1" Margin="22,0" Spacing="5" VerticalAlignment="Center">
+            <TextBlock Text="{Binding SelectedServer.Name}" Classes="h1" />
+            <TextBlock Text="{Binding PackInfo}" Classes="muted" />
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+              <TextBlock Text="{Binding ServerStatus}" Foreground="{Binding ServerStatusBrush}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding ServerName}" Classes="muted" />
+            </StackPanel>
+            <TextBlock Text="{Binding ServerMotd}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ServerPlayers}" TextWrapping="Wrap" Classes="muted" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Spacing="12" VerticalAlignment="Center">
+            <TextBlock Text="Pseudo" Classes="muted" />
+            <TextBox Text="{Binding Username, Mode=TwoWay}" Watermark="Ton pseudo" />
+            <Button Classes="play" Content="{Binding PlayText}" Command="{Binding PlayCommand}"
+                    HorizontalAlignment="Stretch" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Fichiers du modpack et réglages -->
+      <Grid Grid.Row="2" ColumnDefinitions="*,320" ColumnSpacing="16">
+
+        <Border Grid.Column="0" Classes="card">
+          <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+              <Button DockPanel.Dock="Right" Classes="ghost" Content="↻ Actualiser" Command="{Binding RefreshCommand}" />
+              <TextBlock Text="{Binding FilesTitle}" Classes="h2" VerticalAlignment="Center" />
+            </DockPanel>
+            <ListBox Classes="files" ItemsSource="{Binding Files}">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"
+                               Margin="14,0,0,0" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Réglages" Classes="h2" />
+            <TextBlock Text="{Binding RamText}" Classes="muted" Margin="0,6,0,0" />
+            <Slider Minimum="1" Maximum="16" TickFrequency="1" IsSnapToTickEnabled="True"
+                    Value="{Binding RamGb, Mode=TwoWay}" />
+            <TextBlock Text="Dossier du jeu" Classes="muted" Margin="0,8,0,0" />
+            <TextBlock Text="{Binding GameDir}" TextWrapping="Wrap" FontSize="12" />
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6" Margin="0,4,0,0">
+              <Button Grid.Column="0" Classes="ghost" Content="Choisir…" Click="OnChooseFolder"
+                      HorizontalAlignment="Stretch" />
+              <Button Grid.Column="1" Classes="ghost" Content="📁 Ouvrir" Command="{Binding OpenFolderCommand}"
+                      HorizontalAlignment="Stretch" />
+              <Button Grid.Column="2" Classes="ghost" Content="Défaut" Command="{Binding ResetFolderCommand}"
+                      HorizontalAlignment="Stretch" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Bas : progression et journal (repliable) -->
+      <Border Grid.Row="3" Classes="card" Padding="18,14">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding StepText}" Classes="h2" />
+            <TextBlock Grid.Column="1" Text="{Binding Detail}" Classes="muted" FontSize="12" VerticalAlignment="Center" />
+          </Grid>
+          <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" IsIndeterminate="{Binding IsIndeterminate}" />
+          <Expander Header="Journal" IsExpanded="{Binding LogExpanded, Mode=TwoWay}">
+            <TextBox x:Name="LogBox" Text="{Binding Log}" IsReadOnly="True" Height="150"
+                     TextWrapping="Wrap" FontFamily="Consolas, Menlo, monospace" FontSize="12" />
+          </Expander>
+        </StackPanel>
+      </Border>
+
+    </Grid>
+  </Grid>
+</Window>

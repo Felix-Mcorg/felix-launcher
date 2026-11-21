@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Felix.Launcher.AddServerWindow"
+        Title="Ajouter un serveur"
+        Width="560" Height="380" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#16181d">
+  <StackPanel Margin="20" Spacing="10">
+    <TextBlock Text="Ajouter un serveur" FontSize="20" FontWeight="Bold" />
+    <TextBlock TextWrapping="Wrap" Foreground="#9aa0a6"
+               Text="Colle le lien du modpack que le serveur t'a donné : le lien de son dépôt GitHub (https://github.com/compte/modpack) ou celui de son manifest.json." />
+    <TextBox x:Name="LinkBox" Watermark="https://github.com/compte/modpack" />
+    <Border Background="#3a2a12" CornerRadius="6" Padding="10">
+      <TextBlock TextWrapping="Wrap" Foreground="#ffb347"
+                 Text="Attention : un modpack installe des mods qui s'exécutent sur ton ordinateur. N'ajoute que des serveurs de personnes en qui tu as confiance." />
+    </Border>
+    <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Content="Annuler" Click="OnCancel" />
+      <Button x:Name="AddButton" Content="Ajouter" Click="OnAdd" />
+    </StackPanel>
+  </StackPanel>
+</Window>
