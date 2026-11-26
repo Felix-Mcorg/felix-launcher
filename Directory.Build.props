@@ -1,0 +1,10 @@
+<Project>
+  <!-- Réglages communs à tous les projets .NET du dépôt.
+       Si ton SDK .NET est plus ancien, remplace net10.0 par net8.0 (le code est compatible). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

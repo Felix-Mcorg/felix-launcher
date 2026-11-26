@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Bibliothèque cœur : manifest, hash, téléchargement, synchronisation.
+       Aucune dépendance à l'interface ni à Windows : réutilisable dans d'autres projets. -->
+  <PropertyGroup>
+    <RootNamespace>Felix.Core</RootNamespace>
+    <AssemblyName>Felix.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

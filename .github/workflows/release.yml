@@ -1,0 +1,56 @@
+name: Publier le launcher
+
+# Se lance quand tu crées un tag (ex. v1.0.0) ou à la main depuis l'onglet Actions (avec un numéro de version).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numéro de version (ex. 1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Numéro de version
+        id: ver
+        shell: pwsh
+        run: |
+          $raw = "${{ github.event.inputs.version || github.ref_name }}"
+          $v = $raw.TrimStart('v')
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Tests
+        run: dotnet test
+
+      - name: "Compiler (Windows, autonome, rien à installer chez le joueur)"
+        run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r win-x64 --self-contained true -p:Version=${{ steps.ver.outputs.version }} -o publish
+
+      - name: Zip et empreinte SHA-256
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish\* -DestinationPath FelixLauncher-win-x64.zip
+          $hash = (Get-FileHash FelixLauncher-win-x64.zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  FelixLauncher-win-x64.zip" | Out-File -FilePath FelixLauncher-win-x64.zip.sha256 -Encoding ascii -NoNewline
+
+      - name: Publier dans les Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Felix Launcher ${{ steps.ver.outputs.version }}
+          body: |
+            Le démarreur (`FelixLauncher-Setup.exe`, dépôt felix-launcher-bootstrap) télécharge cette version automatiquement.
+          files: |
+            FelixLauncher-win-x64.zip
+            FelixLauncher-win-x64.zip.sha256

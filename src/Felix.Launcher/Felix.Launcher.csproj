@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- L'application : interface Avalonia (Windows d'abord, Linux ensuite sans tout réécrire).
+       Le fichier produit s'appelle FelixLauncher.exe (c'est ce que lance le démarreur). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>FelixLauncher</AssemblyName>
+    <RootNamespace>Felix.Launcher</RootNamespace>
+    <Version>0.1.0</Version>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Quand tu auras ton logo en .ico, décommente : -->
+    <!-- <ApplicationIcon>Assets\logo.ico</ApplicationIcon> -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.*" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.*" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Felix.Core\Felix.Core.csproj" />
+    <ProjectReference Include="..\Felix.Minecraft\Felix.Minecraft.csproj" />
+  </ItemGroup>
+</Project>

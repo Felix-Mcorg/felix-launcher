@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Seul projet qui dépend de CmlLib (installation et lancement de Minecraft).
+       Si CmlLib change, c'est le seul endroit à corriger. Versions flottantes pour le premier essai :
+       une fois que tout compile, remplace « 4.* » et « 1.* » par les numéros exacts installés. -->
+  <PropertyGroup>
+    <RootNamespace>Felix.Minecraft</RootNamespace>
+    <AssemblyName>Felix.Minecraft</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CmlLib.Core" Version="4.*" />
+    <PackageReference Include="CmlLib.Core.Installer.Forge" Version="1.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Felix.Core\Felix.Core.csproj" />
+  </ItemGroup>
+</Project>
