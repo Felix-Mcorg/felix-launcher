@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  release-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,3 +54,40 @@ jobs:
           files: |
             FelixLauncher-win-x64.zip
             FelixLauncher-win-x64.zip.sha256
+
+  release-mac:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        rid: [osx-arm64, osx-x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Numéro de version
+        id: ver
+        run: |
+          RAW="${{ github.event.inputs.version || github.ref_name }}"
+          V="${RAW#v}"
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - name: "Compiler (macOS ${{ matrix.rid }}, autonome)"
+        run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
+
+      - name: Zip et empreinte SHA-256
+        run: |
+          ditto -c -k --sequesterRsrc publish-${{ matrix.rid }} FelixLauncher-${{ matrix.rid }}.zip
+          shasum -a 256 FelixLauncher-${{ matrix.rid }}.zip > FelixLauncher-${{ matrix.rid }}.zip.sha256
+
+      - name: Publier dans les Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Felix Launcher ${{ steps.ver.outputs.version }}
+          files: |
+            FelixLauncher-${{ matrix.rid }}.zip
+            FelixLauncher-${{ matrix.rid }}.zip.sha256
+
