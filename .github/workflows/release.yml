@@ -1,5 +1,5 @@
 name: Publier le launcher
- 
+
 # Se lance quand tu crées un tag (ex. v1.0.0) ou à la main depuis l'onglet Actions (avec un numéro de version).
 on:
   push:
@@ -9,20 +9,20 @@ on:
       version:
         description: "Numéro de version (ex. 1.0.0)"
         required: true
- 
+
 permissions:
   contents: write
- 
+
 jobs:
   release-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
- 
+
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
- 
+
       - name: Numéro de version
         id: ver
         shell: pwsh
@@ -30,20 +30,20 @@ jobs:
           $raw = "${{ github.event.inputs.version || github.ref_name }}"
           $v = $raw.TrimStart('v')
           "version=$v" >> $env:GITHUB_OUTPUT
- 
+
       - name: Tests
         run: dotnet test
- 
+
       - name: "Compiler (Windows, autonome, rien à installer chez le joueur)"
         run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r win-x64 --self-contained true -p:Version=${{ steps.ver.outputs.version }} -o publish
- 
+
       - name: Zip et empreinte SHA-256
         shell: pwsh
         run: |
           Compress-Archive -Path publish\* -DestinationPath FelixLauncher-win-x64.zip
           $hash = (Get-FileHash FelixLauncher-win-x64.zip -Algorithm SHA256).Hash.ToLower()
           "$hash  FelixLauncher-win-x64.zip" | Out-File -FilePath FelixLauncher-win-x64.zip.sha256 -Encoding ascii -NoNewline
- 
+
       - name: Publier dans les Releases
         uses: softprops/action-gh-release@v2
         with:
@@ -55,7 +55,7 @@ jobs:
           files: |
             FelixLauncher-win-x64.zip
             FelixLauncher-win-x64.zip.sha256
- 
+
   release-mac:
     name: release-mac (${{ matrix.rid }}, ${{ matrix.target.name }})
     runs-on: macos-15
@@ -79,30 +79,37 @@ jobs:
       ASSET: FelixLauncher-${{ matrix.rid }}${{ matrix.target.suffix }}.zip
     steps:
       - uses: actions/checkout@v5
- 
+
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
             10.0.x
- 
+
       - name: Numéro de version
         id: ver
         run: |
           RAW="${{ github.event.inputs.version || github.ref_name }}"
           V="${RAW#v}"
           echo "version=$V" >> "$GITHUB_OUTPUT"
- 
+
+      # Passe TOUS les projets (et leurs références) en .NET 8, seulement pour le build macOS 11.
+      - name: Passer les projets en .NET 8 (macOS 11)
+        if: matrix.target.name == 'macos11'
+        run: |
+          FILES=$(find . \( -name '*.csproj' -o -name 'Directory.Build.props' \) -not -path './.git/*')
+          perl -pi -e 's#(<TargetFrameworks?>[^<]*)net10\.0#${1}net8.0#g' $FILES
+          grep -H '<TargetFramework' $FILES || true
+
       - name: "Compiler (macOS ${{ matrix.rid }}, ${{ matrix.target.tfm }}, autonome)"
         run: >
           dotnet publish src/Felix.Launcher/Felix.Launcher.csproj
           -c Release -r ${{ matrix.rid }} --self-contained true
-          -p:TargetFramework=${{ matrix.target.tfm }}
           -p:LangVersion=latest
           -p:SupportedOSPlatformVersion=${{ matrix.target.minos }}
           -p:Version=${{ steps.ver.outputs.version }}
           -o "$OUT"
- 
+
       - name: Nom de l'exécutable
         id: exe
         run: |
@@ -114,7 +121,7 @@ jobs:
             exit 1
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
- 
+
       - name: Empaqueter en .app, Zip et empreinte SHA-256
         run: |
           EXE="${{ steps.exe.outputs.name }}"
@@ -144,7 +151,7 @@ jobs:
           EOF
           ditto -c -k --sequesterRsrc "$APP_DIR" "$ASSET"
           shasum -a 256 "$ASSET" > "$ASSET.sha256"
- 
+
       - name: Publier dans les Releases
         uses: softprops/action-gh-release@v2
         with:
@@ -153,7 +160,7 @@ jobs:
           files: |
             ${{ env.ASSET }}
             ${{ env.ASSET }}.sha256
- 
+
   release-linux:
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -170,26 +177,26 @@ jobs:
       OUT: publish-${{ matrix.rid }}
     steps:
       - uses: actions/checkout@v5
- 
+
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
- 
+
       - name: Numéro de version
         id: ver
         run: |
           RAW="${{ github.event.inputs.version || github.ref_name }}"
           V="${RAW#v}"
           echo "version=$V" >> "$GITHUB_OUTPUT"
- 
+
       - name: Installer les outils AppImage
         run: |
           sudo apt-get update
           sudo apt-get install -y curl file
- 
+
       - name: "Compiler (Linux ${{ matrix.rid }}, autonome)"
         run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=${{ steps.ver.outputs.version }} -o "$OUT"
- 
+
       - name: Nom de l'exécutable
         id: exe
         run: |
@@ -201,7 +208,7 @@ jobs:
             exit 1
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
- 
+
       - name: Créer .AppImage, archive .tar.gz et empreintes SHA-256
         run: |
           EXE="${{ steps.exe.outputs.name }}"
@@ -231,7 +238,7 @@ jobs:
           chmod +x appimagetool
           ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run AppDir "FelixLauncher-${{ matrix.rid }}.AppImage"
           sha256sum "FelixLauncher-${{ matrix.rid }}.AppImage" > "FelixLauncher-${{ matrix.rid }}.AppImage.sha256"
- 
+
       - name: Publier dans les Releases
         uses: softprops/action-gh-release@v2
         with:
@@ -242,4 +249,3 @@ jobs:
             FelixLauncher-${{ matrix.rid }}.tar.gz.sha256
             FelixLauncher-${{ matrix.rid }}.AppImage
             FelixLauncher-${{ matrix.rid }}.AppImage.sha256
- 
