@@ -80,18 +80,33 @@ jobs:
 
       - name: Empaqueter en .app, Zip et empreinte SHA-256
         run: |
+          set -e
+          echo "Contenu de publish-${{ matrix.rid }} :"
+          ls -la publish-${{ matrix.rid }} | head -30
+
+          # Nom de l'exécutable : Felix.Launcher, sinon on cherche le premier binaire Mach-O
+          EXE="Felix.Launcher"
+          if [ ! -f "publish-${{ matrix.rid }}/$EXE" ]; then
+            EXE=$(find publish-${{ matrix.rid }} -maxdepth 1 -type f -perm -u+x ! -name "*.dylib" ! -name "*.dll" -exec basename {} \; | head -n 1)
+          fi
+          if [ -z "$EXE" ]; then
+            echo "::error::Aucun exécutable trouvé dans publish-${{ matrix.rid }}"
+            exit 1
+          fi
+          echo "Exécutable : $EXE"
+
           APP_DIR="FelixLauncher.app"
           mkdir -p "$APP_DIR/Contents/MacOS"
-          cp -R publish-${{ matrix.rid }}/* "$APP_DIR/Contents/MacOS/"
-          chmod +x "$APP_DIR/Contents/MacOS/Felix.Launcher"
+          cp -R publish-${{ matrix.rid }}/. "$APP_DIR/Contents/MacOS/"
+          chmod +x "$APP_DIR/Contents/MacOS/$EXE"
 
           cat <<EOF > "$APP_DIR/Contents/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://apple.com">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>CFBundleExecutable</key>
-            <string>Felix.Launcher</string>
+            <string>$EXE</string>
             <key>CFBundleIdentifier</key>
             <string>org.felixmc.launcher</string>
             <key>CFBundleName</key>
@@ -106,7 +121,7 @@ jobs:
           </plist>
           EOF
 
-          ditto -c -k --sequesterRsrc "$APP_DIR" "FelixLauncher-${{ matrix.rid }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "FelixLauncher-${{ matrix.rid }}.zip"
           shasum -a 256 "FelixLauncher-${{ matrix.rid }}.zip" > "FelixLauncher-${{ matrix.rid }}.zip.sha256"
 
       - name: Publier dans les Releases
@@ -154,26 +169,40 @@ jobs:
 
       - name: Créer .AppImage, archive .tar.gz et empreintes SHA-256
         run: |
+          set -e
+          echo "Contenu de publish-${{ matrix.rid }} :"
+          ls -la publish-${{ matrix.rid }} | head -30
+
+          EXE="Felix.Launcher"
+          if [ ! -f "publish-${{ matrix.rid }}/$EXE" ]; then
+            EXE=$(find publish-${{ matrix.rid }} -maxdepth 1 -type f -perm -u+x ! -name "*.so" ! -name "*.dll" -exec basename {} \; | head -n 1)
+          fi
+          if [ -z "$EXE" ]; then
+            echo "::error::Aucun exécutable trouvé dans publish-${{ matrix.rid }}"
+            exit 1
+          fi
+          echo "Exécutable : $EXE"
+
           # 1. Archive .tar.gz (pour le démarreur automatique)
           tar -czf FelixLauncher-${{ matrix.rid }}.tar.gz -C publish-${{ matrix.rid }} .
           sha256sum FelixLauncher-${{ matrix.rid }}.tar.gz > FelixLauncher-${{ matrix.rid }}.tar.gz.sha256
 
           # 2. Exécutable autonome .AppImage (pour lancement direct au double-clic)
           mkdir -p AppDir/usr/bin
-          cp -R publish-${{ matrix.rid }}/* AppDir/usr/bin/
-          chmod +x AppDir/usr/bin/Felix.Launcher
+          cp -R publish-${{ matrix.rid }}/. AppDir/usr/bin/
+          chmod +x "AppDir/usr/bin/$EXE"
 
           cat <<EOF > AppDir/AppRun
           #!/bin/sh
           HERE="\$(dirname "\$(readlink -f "\${0}")")"
-          exec "\${HERE}/usr/bin/Felix.Launcher" "\$@"
+          exec "\${HERE}/usr/bin/$EXE" "\$@"
           EOF
           chmod +x AppDir/AppRun
 
           cat <<EOF > AppDir/felix-launcher.desktop
           [Desktop Entry]
           Name=Felix Launcher
-          Exec=Felix.Launcher
+          Exec=$EXE
           Icon=felix-launcher
           Type=Application
           Categories=Game;
@@ -181,7 +210,7 @@ jobs:
 
           printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > AppDir/felix-launcher.png
 
-          curl -fSL "https://github.com{{ matrix.appimage_arch }}.AppImage" -o appimagetool
+          curl -fSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage_arch }}.AppImage" -o appimagetool
           chmod +x appimagetool
           ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run AppDir "FelixLauncher-${{ matrix.rid }}.AppImage"
           sha256sum "FelixLauncher-${{ matrix.rid }}.AppImage" > "FelixLauncher-${{ matrix.rid }}.AppImage.sha256"
