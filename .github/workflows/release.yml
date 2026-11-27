@@ -50,7 +50,7 @@ jobs:
           tag_name: v${{ steps.ver.outputs.version }}
           name: Felix Launcher ${{ steps.ver.outputs.version }}
           body: |
-            Le démarreur (`FelixLauncher-Setup.exe`, dépôt felix-launcher-bootstrap) télécharge cette version automatiquement.
+            Le démarreur (`FelixLauncher-Setup`, dépôt felix-launcher-bootstrap) télécharge cette version automatiquement.
           files: |
             FelixLauncher-win-x64.zip
             FelixLauncher-win-x64.zip.sha256
@@ -126,8 +126,10 @@ jobs:
         include:
           - rid: linux-x64
             runner: ubuntu-latest
+            appimage_arch: x86_64
           - rid: linux-arm64
             runner: ubuntu-24.04-arm
+            appimage_arch: aarch64
     steps:
       - uses: actions/checkout@v4
 
@@ -142,13 +144,47 @@ jobs:
           V="${RAW#v}"
           echo "version=$V" >> $GITHUB_OUTPUT
 
+      - name: Installer les outils AppImage
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget libfuse2
+
       - name: "Compiler (Linux ${{ matrix.rid }}, autonome)"
         run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
 
-      - name: Archive tar.gz et empreinte SHA-256
+      - name: Créer .AppImage, archive .tar.gz et empreintes SHA-256
         run: |
+          # 1. Archive .tar.gz (pour le démarreur automatique)
           tar -czf FelixLauncher-${{ matrix.rid }}.tar.gz -C publish-${{ matrix.rid }} .
           sha256sum FelixLauncher-${{ matrix.rid }}.tar.gz > FelixLauncher-${{ matrix.rid }}.tar.gz.sha256
+
+          # 2. Exécutable autonome .AppImage (pour lancement direct au double-clic)
+          mkdir -p AppDir/usr/bin
+          cp -R publish-${{ matrix.rid }}/* AppDir/usr/bin/
+          chmod +x AppDir/usr/bin/Felix.Launcher
+
+          cat <<EOF > AppDir/AppRun
+          #!/bin/sh
+          HERE="\$(dirname "\$(readlink -f "\${0}")")"
+          exec "\${HERE}/usr/bin/Felix.Launcher" "\$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+          cat <<EOF > AppDir/felix-launcher.desktop
+          [Desktop Entry]
+          Name=Felix Launcher
+          Exec=Felix.Launcher
+          Icon=felix-launcher
+          Type=Application
+          Categories=Game;
+          EOF
+
+          printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > AppDir/felix-launcher.png
+
+          wget -q https://github.com{{ matrix.appimage_arch }}.AppImage -O appimagetool
+          chmod +x appimagetool
+          ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run AppDir "FelixLauncher-${{ matrix.rid }}.AppImage"
+          sha256sum "FelixLauncher-${{ matrix.rid }}.AppImage" > "FelixLauncher-${{ matrix.rid }}.AppImage.sha256"
 
       - name: Publier dans les Releases
         uses: softprops/action-gh-release@v2
@@ -158,3 +194,5 @@ jobs:
           files: |
             FelixLauncher-${{ matrix.rid }}.tar.gz
             FelixLauncher-${{ matrix.rid }}.tar.gz.sha256
+            FelixLauncher-${{ matrix.rid }}.AppImage
+            FelixLauncher-${{ matrix.rid }}.AppImage.sha256
