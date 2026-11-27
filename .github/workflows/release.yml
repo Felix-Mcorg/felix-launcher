@@ -147,7 +147,7 @@ jobs:
       - name: Installer les outils AppImage
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget libfuse2
+          sudo apt-get install -y curl file
 
       - name: "Compiler (Linux ${{ matrix.rid }}, autonome)"
         run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
@@ -181,7 +181,7 @@ jobs:
 
           printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > AppDir/felix-launcher.png
 
-          wget -q https://github.com{{ matrix.appimage_arch }}.AppImage -O appimagetool
+          curl -fSL "https://github.com{{ matrix.appimage_arch }}.AppImage" -o appimagetool
           chmod +x appimagetool
           ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run AppDir "FelixLauncher-${{ matrix.rid }}.AppImage"
           sha256sum "FelixLauncher-${{ matrix.rid }}.AppImage" > "FelixLauncher-${{ matrix.rid }}.AppImage.sha256"
