@@ -75,8 +75,11 @@ jobs:
           V="${RAW#v}"
           echo "version=$V" >> $GITHUB_OUTPUT
 
+      - name: "Restaurer les dépendances (.NET 6 macOS ${{ matrix.rid }})"
+        run: dotnet restore src/Felix.Launcher/Felix.Launcher.csproj -r ${{ matrix.rid }} -p:TargetFramework=net6.0
+
       - name: "Compiler (macOS ${{ matrix.rid }}, autonome, .NET 6 pour macOS 11)"
-        run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:TargetFramework=net6.0 -p:LangVersion=latest -p:SupportedOSPlatformVersion=11.0 -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
+        run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --no-restore --self-contained true -p:TargetFramework=net6.0 -p:LangVersion=latest -p:SupportedOSPlatformVersion=11.0 -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
 
       - name: Vérifier la version minimale de macOS
         run: |
@@ -91,7 +94,6 @@ jobs:
           echo "Contenu de publish-${{ matrix.rid }} :"
           ls -la publish-${{ matrix.rid }} | head -30
 
-          # Nom de l'exécutable : Felix.Launcher, sinon on cherche le premier binaire Mach-O
           EXE="Felix.Launcher"
           if [ ! -f "publish-${{ matrix.rid }}/$EXE" ]; then
             EXE=$(find publish-${{ matrix.rid }} -maxdepth 1 -type f -perm -u+x ! -name "*.dylib" ! -name "*.dll" -exec basename {} \; | head -n 1)
@@ -109,7 +111,7 @@ jobs:
 
           cat <<EOF > "$APP_DIR/Contents/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://apple.com">
           <plist version="1.0">
           <dict>
             <key>CFBundleExecutable</key>
@@ -190,11 +192,9 @@ jobs:
           fi
           echo "Exécutable : $EXE"
 
-          # 1. Archive .tar.gz (pour le démarreur automatique)
           tar -czf FelixLauncher-${{ matrix.rid }}.tar.gz -C publish-${{ matrix.rid }} .
           sha256sum FelixLauncher-${{ matrix.rid }}.tar.gz > FelixLauncher-${{ matrix.rid }}.tar.gz.sha256
 
-          # 2. Exécutable autonome .AppImage (pour lancement direct au double-clic)
           mkdir -p AppDir/usr/bin
           cp -R publish-${{ matrix.rid }}/. AppDir/usr/bin/
           chmod +x "AppDir/usr/bin/$EXE"
@@ -217,10 +217,10 @@ jobs:
 
           printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > AppDir/felix-launcher.png
 
-          curl -fSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage_arch }}.AppImage" -o appimagetool
+          curl -fSL "https://github.com{{ matrix.appimage_arch }}.AppImage" -o appimagetool
           chmod +x appimagetool
-          ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run AppDir "FelixLauncher-${{ matrix.rid }}.AppImage"
-          sha256sum "FelixLauncher-${{ matrix.rid }}.AppImage" > "FelixLauncher-${{ matrix.rid }}.AppImage.sha256"
+          ARCH=${{ matrix.appimage_arch }} ./appimagetool --appimage-extract-and-run AppDir "FelixLauncher-Setup-${{ matrix.rid }}.AppImage"
+          sha256sum "FelixLauncher-Setup-${{ matrix.rid }}.AppImage" > "FelixLauncher-Setup-${{ matrix.rid }}.AppImage.sha256"
 
       - name: Publier dans les Releases
         uses: softprops/action-gh-release@v2
@@ -230,5 +230,5 @@ jobs:
           files: |
             FelixLauncher-${{ matrix.rid }}.tar.gz
             FelixLauncher-${{ matrix.rid }}.tar.gz.sha256
-            FelixLauncher-${{ matrix.rid }}.AppImage
-            FelixLauncher-${{ matrix.rid }}.AppImage.sha256
+            FelixLauncher-Setup-${{ matrix.rid }}.AppImage
+            FelixLauncher-Setup-${{ matrix.rid }}.AppImage.sha256
