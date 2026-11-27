@@ -13,6 +13,9 @@ on:
 permissions:
   contents: write
 
+env:
+  MACOS_MIN: "12.0"
+
 jobs:
   release-windows:
     runs-on: windows-latest
@@ -51,40 +54,25 @@ jobs:
           name: Felix Launcher ${{ steps.ver.outputs.version }}
           body: |
             Le démarreur (`FelixLauncher-Setup`, dépôt felix-launcher-bootstrap) télécharge cette version automatiquement.
-            macOS : les fichiers `-macos11` sont pour macOS 11 à 14, les autres pour macOS 15 et plus récent.
           files: |
             FelixLauncher-win-x64.zip
             FelixLauncher-win-x64.zip.sha256
 
   release-mac:
-    name: release-mac (${{ matrix.rid }}, ${{ matrix.target.name }})
     runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
         rid: [osx-arm64, osx-x64]
-        target:
-          # macOS 11 à 14 : .NET 10 ne tourne pas sous macOS 11, on compile en .NET 8
-          - name: macos11
-            tfm: net8.0
-            minos: "11.0"
-            suffix: "-macos11"
-          # macOS 15 et plus : build .NET 10 normal (noms de fichiers inchangés)
-          - name: macos15
-            tfm: net10.0
-            minos: "15.0"
-            suffix: ""
     env:
-      OUT: publish-${{ matrix.rid }}-${{ matrix.target.name }}
-      ASSET: FelixLauncher-${{ matrix.rid }}${{ matrix.target.suffix }}.zip
+      OUT: publish-${{ matrix.rid }}
+      ASSET: FelixLauncher-${{ matrix.rid }}.zip
     steps:
       - uses: actions/checkout@v5
 
       - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: "10.0.x"
 
       - name: Numéro de version
         id: ver
@@ -93,20 +81,13 @@ jobs:
           V="${RAW#v}"
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
-      # Passe TOUS les projets (et leurs références) en .NET 8, seulement pour le build macOS 11.
-      - name: Passer les projets en .NET 8 (macOS 11)
-        if: matrix.target.name == 'macos11'
-        run: |
-          FILES=$(find . \( -name '*.csproj' -o -name 'Directory.Build.props' \) -not -path './.git/*')
-          perl -pi -e 's#(<TargetFrameworks?>[^<]*)net10\.0#${1}net8.0#g' $FILES
-          grep -H '<TargetFramework' $FILES || true
-
-      - name: "Compiler (macOS ${{ matrix.rid }}, ${{ matrix.target.tfm }}, autonome)"
+      - name: "Compiler (macOS ${{ matrix.rid }}, autonome)"
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ env.MACOS_MIN }}
         run: >
           dotnet publish src/Felix.Launcher/Felix.Launcher.csproj
           -c Release -r ${{ matrix.rid }} --self-contained true
-          -p:LangVersion=latest
-          -p:SupportedOSPlatformVersion=${{ matrix.target.minos }}
+          -p:SupportedOSPlatformVersion=${{ env.MACOS_MIN }}
           -p:Version=${{ steps.ver.outputs.version }}
           -o "$OUT"
 
@@ -121,6 +102,22 @@ jobs:
             exit 1
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Vérifier la version minimale de macOS des binaires
+        run: |
+          LIMIT="${MACOS_MIN%%.*}"
+          BAD=0
+          while IFS= read -r f; do
+            file "$f" | grep -q 'Mach-O' || continue
+            MIN=$(vtool -show-build "$f" 2>/dev/null | awk '/minos/{print $2; exit}')
+            [ -z "$MIN" ] && MIN=$(otool -l "$f" | awk '/LC_VERSION_MIN_MACOSX/{getline; getline; print $2; exit}')
+            echo "minos=${MIN:-?}  $f"
+            if [ -n "$MIN" ] && [ "${MIN%%.*}" -gt "$LIMIT" ]; then
+              echo "::error::$f exige macOS $MIN (> $MACOS_MIN)"
+              BAD=1
+            fi
+          done < <(find "$OUT" -type f)
+          exit $BAD
 
       - name: Empaqueter en .app, Zip et empreinte SHA-256
         run: |
@@ -145,7 +142,7 @@ jobs:
             <key>CFBundleShortVersionString</key>
             <string>${{ steps.ver.outputs.version }}</string>
             <key>LSMinimumSystemVersion</key>
-            <string>${{ matrix.target.minos }}</string>
+            <string>$MACOS_MIN</string>
           </dict>
           </plist>
           EOF
