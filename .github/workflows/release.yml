@@ -76,7 +76,7 @@ jobs:
           echo "version=$V" >> $GITHUB_OUTPUT
 
       - name: "Compiler (macOS ${{ matrix.rid }}, autonome)"
-        run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:SupportedOSPlatformVersion=11.0 -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
+        run: dotnet publish src/Felix.Launcher/Felix.Launcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:SupportedOSPlatformVersion=12.0 -p:Version=${{ steps.ver.outputs.version }} -o publish-${{ matrix.rid }}
 
       - name: Empaqueter en .app, Zip et empreinte SHA-256
         run: |
@@ -116,7 +116,7 @@ jobs:
             <key>CFBundleShortVersionString</key>
             <string>${{ steps.ver.outputs.version }}</string>
             <key>LSMinimumSystemVersion</key>
-            <string>11.0</string>
+            <string>12.0</string>
           </dict>
           </plist>
           EOF
